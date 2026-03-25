@@ -1,6 +1,7 @@
 import re
 import json
 import datetime
+from urllib.parse import quote_plus
 import streamlit as st
 import pypdf
 from io import BytesIO
@@ -315,7 +316,7 @@ def get_industry_trends(missing_skills, job_description):
                 seen.add(skill)
                 results.append({"skill":skill,"category":category,
                     "resource":RESOURCES.get(skill,
-                        "https://www.google.com/search?q=learn+"+skill.replace(" ","+"))})
+                        "https://www.google.com/search?q=" + quote_plus("learn " + skill))})
             if len(results) == 5: return results
     return results
 
@@ -362,7 +363,8 @@ def create_confidence_chart(skill_confidences):
 
 def export_to_pdf(resume_name, job_title, combined_score, semantic_score,
                   skill_score, ats_score, matched_skills, missing_skills,
-                  recommendations, ats_checks, ats_warnings, skill_confidences):
+                  recommendations, ats_checks, ats_warnings, skill_confidences,
+                  analysis_date=None):
     from reportlab.lib import colors as rl_colors
     from reportlab.lib.pagesizes import letter
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -394,10 +396,11 @@ def export_to_pdf(resume_name, job_title, combined_score, semantic_score,
 
     story = []
     story.append(Paragraph("AI Resume Screener \u2014 Analysis Report", title_style))
+    timestamp = analysis_date or datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
     story.append(Paragraph(
         f"Resume: <b>{resume_name}</b>  |  "
         f"Job: <b>{job_title or 'N/A'}</b>  |  "
-        f"Generated: <b>{datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}</b>",
+        f"Generated: <b>{timestamp}</b>",
         sub_style))
     story.append(HRFlowable(width="100%", thickness=1, color=DARK))
     story.append(Spacer(1, 0.15*inch))
@@ -585,7 +588,7 @@ if resume_file and job_description:
         "matched_skills": sorted(matched_skills),
         "missing_skills": sorted(missing_skills),
     }
-    if not st.session_state.history or st.session_state.history[0] != history_record:
+    if not any(r == history_record for r in st.session_state.history):
         save_to_history(history_record)
 
     st.success("\u2705 Analysis complete!")
@@ -604,6 +607,7 @@ if resume_file and job_description:
         recommendations=recommendations,
         ats_checks=ats_result["checks"], ats_warnings=ats_result["warnings"],
         skill_confidences=skill_confidences,
+        analysis_date=history_record["date"],
     )
     st.download_button(
         label="\U0001f4c4 Export PDF Report", data=pdf_bytes,
