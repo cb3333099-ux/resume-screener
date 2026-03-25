@@ -708,7 +708,7 @@ with st.sidebar:
                 st.success(f"Saved: {bm_title}")
                 st.rerun()
     st.markdown("---")
-    if st.button("🗑️ Clear All", key="clear_all_btn", help="Clear resume and job description"):
+    if st.button("🗑️ Clear History & Saved", key="clear_all_btn", help="Clear application history and saved analyses"):
         st.session_state.history = []
         st.session_state.saved_analyses = {}
         st.rerun()
@@ -821,8 +821,8 @@ if resume_file and job_description:
      tab_industry, tab_charts, tab_semantic, tab_preview) = st.tabs([
         "📊 Dashboard",
         "🎯 Skills Analysis",
-        "🧠 Detailed Report",
-        "📈 Insights",
+        "💡 Recommendations",
+        "📈 Confidence Scores",
         "🏭 Industry Insights",
         "📉 Charts",
         "🔬 Semantic Analysis",
@@ -914,7 +914,8 @@ if resume_file and job_description:
             st.markdown(chips_html, unsafe_allow_html=True)
             st.markdown("---")
             for sk,(cp,lv) in sorted(skill_confidences.items(), key=lambda x: -x[1][0]):
-                level_label = "🟢 High" if lv=="high" else "🟡 Medium" if lv=="medium" else "🔴 Low"
+                level_labels = {"high":"🟢 High","medium":"🟡 Medium","low":"🔴 Low"}
+                level_label = level_labels.get(lv, "🔴 Low")
                 ca,cb = st.columns([3,1])
                 ca.markdown(f"**{sk.title()}**")
                 cb.markdown(f'<span class="conf-{lv}">{level_label} ({cp}%)</span>', unsafe_allow_html=True)
