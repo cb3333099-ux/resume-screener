@@ -7,44 +7,206 @@ import pypdf
 from io import BytesIO
 import plotly.graph_objects as go
 
-st.set_page_config(page_title="AI Resume Screener", layout="wide", page_icon="\U0001f916")
+st.set_page_config(
+    page_title="Resume Screener AI",
+    layout="wide",
+    page_icon="📄",
+    initial_sidebar_state="expanded",
+)
 
 st.markdown(
     """
     <style>
-    .badge { display: inline-block; padding: 4px 14px; border-radius: 20px; font-weight: 700; font-size: 0.9rem; letter-spacing: 0.03em; }
-    .badge-green  { background-color: #28a745; color: #fff; }
-    .badge-yellow { background-color: #ffc107; color: #212529; }
-    .badge-red    { background-color: #dc3545; color: #fff; }
-    .status-ok   { color: #28a745; font-weight: 700; }
-    .status-warn { color: #e6a817; font-weight: 700; }
-    .status-bad  { color: #dc3545; font-weight: 700; }
-    .conf-high   { color: #28a745; font-weight: 700; }
-    .conf-medium { color: #e6a817; font-weight: 700; }
-    .conf-low    { color: #dc3545; font-weight: 700; }
-    .adv-card { background:#f8f9fa; border-radius:10px; padding:14px 18px; margin-bottom:8px; border-left:4px solid #6c757d; }
-    .adv-card.green  { border-left-color: #28a745; }
-    .adv-card.yellow { border-left-color: #ffc107; }
-    .adv-card.red    { border-left-color: #dc3545; }
-    .adv-card.blue   { border-left-color: #17a2b8; }
-    .rec-card { background:#fff; border-radius:10px; padding:12px 16px; margin-bottom:10px; border-left:5px solid #6c757d; box-shadow:0 1px 4px rgba(0,0,0,0.07); }
-    .rec-high   { border-left-color: #dc3545; }
-    .rec-medium { border-left-color: #ffc107; }
-    .rec-low    { border-left-color: #28a745; }
-    .skill-chip { display:inline-block; padding:3px 10px; border-radius:12px; font-size:0.82rem; font-weight:600; margin:3px 2px; }
-    .chip-high   { background:#d4edda; color:#155724; }
-    .chip-medium { background:#fff3cd; color:#856404; }
-    .chip-low    { background:#f8d7da; color:#721c24; }
-    .ats-check { padding:4px 0; }
-    .ats-pass  { color:#28a745; }
-    .ats-fail  { color:#dc3545; }
+    /* ── Dark theme base ──────────────────────────────────────── */
+    html, body, [data-testid="stApp"] {
+        background-color: #0E1117 !important;
+        color: #E5E7EB !important;
+    }
+    [data-testid="stSidebar"] {
+        background-color: #1C2128 !important;
+        border-right: 1px solid #30363D;
+    }
+    [data-testid="stSidebar"] * { color: #E5E7EB !important; }
+
+    /* ── Header branding ──────────────────────────────────────── */
+    .app-header {
+        display: flex; align-items: center; gap: 14px;
+        padding: 18px 0 10px 0; margin-bottom: 6px;
+    }
+    .app-header .logo {
+        font-size: 2.4rem; line-height: 1;
+    }
+    .app-header .title-block h1 {
+        margin: 0; font-size: 1.9rem; font-weight: 800;
+        background: linear-gradient(135deg, #3B82F6 0%, #8B5CF6 100%);
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    .app-header .title-block p {
+        margin: 0; font-size: 0.82rem; color: #9CA3AF;
+    }
+
+    /* ── Metric cards ─────────────────────────────────────────── */
+    .metric-card {
+        background: #1C2128;
+        border: 1px solid #30363D;
+        border-radius: 12px;
+        padding: 20px 18px;
+        text-align: center;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    }
+    .metric-card:hover {
+        transform: translateY(-3px) scale(1.02);
+        box-shadow: 0 6px 20px rgba(59,130,246,0.25);
+    }
+    .metric-card .mc-icon  { font-size: 1.6rem; margin-bottom: 6px; }
+    .metric-card .mc-label { font-size: 0.75rem; color: #9CA3AF; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
+    .metric-card .mc-value { font-size: 2rem; font-weight: 800; color: #E5E7EB; line-height: 1.1; }
+    .metric-card .mc-badge { display:inline-block; margin-top:8px; padding:3px 12px; border-radius:20px; font-size:0.75rem; font-weight:700; }
+    .mc-badge-green  { background:rgba(16,185,129,0.2); color:#10B981; border:1px solid rgba(16,185,129,0.4); }
+    .mc-badge-yellow { background:rgba(251,191,36,0.2);  color:#FBBF24; border:1px solid rgba(251,191,36,0.4); }
+    .mc-badge-red    { background:rgba(239,68,68,0.2);   color:#EF4444; border:1px solid rgba(239,68,68,0.4); }
+
+    /* ── Skill badges ─────────────────────────────────────────── */
+    .badge { display:inline-block; padding:4px 14px; border-radius:20px; font-weight:700; font-size:0.88rem; letter-spacing:0.03em; }
+    .badge-green  { background:rgba(16,185,129,0.2);  color:#10B981; border:1px solid rgba(16,185,129,0.4); }
+    .badge-yellow { background:rgba(251,191,36,0.2);  color:#FBBF24; border:1px solid rgba(251,191,36,0.4); }
+    .badge-red    { background:rgba(239,68,68,0.2);   color:#EF4444; border:1px solid rgba(239,68,68,0.4); }
+
+    /* ── Status colours ───────────────────────────────────────── */
+    .status-ok   { color: #10B981; font-weight: 700; }
+    .status-warn { color: #FBBF24; font-weight: 700; }
+    .status-bad  { color: #EF4444; font-weight: 700; }
+    .conf-high   { color: #10B981; font-weight: 700; }
+    .conf-medium { color: #FBBF24; font-weight: 700; }
+    .conf-low    { color: #EF4444; font-weight: 700; }
+
+    /* ── Advanced matching cards ──────────────────────────────── */
+    .adv-card {
+        background: #1C2128; border-radius: 10px;
+        padding: 14px 18px; margin-bottom: 8px;
+        border-left: 4px solid #30363D;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+    }
+    .adv-card strong { color: #E5E7EB; }
+    .adv-card em     { color: #9CA3AF; }
+    .adv-card.green  { border-left-color: #10B981; }
+    .adv-card.yellow { border-left-color: #FBBF24; }
+    .adv-card.red    { border-left-color: #EF4444; }
+    .adv-card.blue   { border-left-color: #3B82F6; }
+
+    /* ── Recommendation cards ─────────────────────────────────── */
+    .rec-card {
+        background: #1C2128; border-radius: 10px;
+        padding: 14px 18px; margin-bottom: 10px;
+        border-left: 5px solid #30363D;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+        transition: box-shadow 0.2s ease;
+    }
+    .rec-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.5); }
+    .rec-card strong { color: #E5E7EB; }
+    .rec-high   { border-left-color: #EF4444; }
+    .rec-medium { border-left-color: #FBBF24; }
+    .rec-low    { border-left-color: #10B981; }
+    .rec-card span { color: #9CA3AF !important; }
+
+    /* ── Skill chips ──────────────────────────────────────────── */
+    .skill-chip {
+        display: inline-block; padding: 4px 12px;
+        border-radius: 16px; font-size: 0.82rem;
+        font-weight: 600; margin: 3px 3px;
+        transition: transform 0.15s ease;
+    }
+    .skill-chip:hover { transform: scale(1.06); }
+    .chip-high   { background:rgba(16,185,129,0.15); color:#10B981; border:1px solid rgba(16,185,129,0.35); }
+    .chip-medium { background:rgba(251,191,36,0.15);  color:#FBBF24; border:1px solid rgba(251,191,36,0.35); }
+    .chip-low    { background:rgba(239,68,68,0.15);   color:#EF4444; border:1px solid rgba(239,68,68,0.35); }
+
+    /* ── Skill section badges (matched/missing/optional) ──────── */
+    .skill-badge-green  { display:inline-block; padding:5px 14px; border-radius:16px; margin:3px; font-size:0.83rem; font-weight:600; background:rgba(16,185,129,0.15); color:#10B981; border:1px solid rgba(16,185,129,0.35); }
+    .skill-badge-red    { display:inline-block; padding:5px 14px; border-radius:16px; margin:3px; font-size:0.83rem; font-weight:600; background:rgba(239,68,68,0.15);   color:#EF4444; border:1px solid rgba(239,68,68,0.35); }
+    .skill-badge-yellow { display:inline-block; padding:5px 14px; border-radius:16px; margin:3px; font-size:0.83rem; font-weight:600; background:rgba(251,191,36,0.15);  color:#FBBF24; border:1px solid rgba(251,191,36,0.35); }
+
+    /* ── ATS checklist ────────────────────────────────────────── */
+    .ats-check { padding: 6px 0; }
+    .ats-pass  { color: #10B981; }
+    .ats-fail  { color: #EF4444; }
+
+    /* ── Priority label pills ─────────────────────────────────── */
+    .prio-high   { color:#EF4444; font-size:0.75rem; font-weight:700; }
+    .prio-medium { color:#FBBF24; font-size:0.75rem; font-weight:700; }
+    .prio-low    { color:#10B981; font-size:0.75rem; font-weight:700; }
+
+    /* ── Streamlit native overrides ───────────────────────────── */
+    div[data-testid="stMetricValue"] { color: #E5E7EB !important; }
+    div[data-testid="stMetricLabel"] { color: #9CA3AF !important; }
+    .stProgress > div > div { background: linear-gradient(90deg, #3B82F6, #8B5CF6) !important; border-radius: 4px; }
+    div[data-testid="stTabs"] [role="tab"]          { color: #9CA3AF; font-weight: 600; }
+    div[data-testid="stTabs"] [role="tab"][aria-selected="true"] { color: #3B82F6 !important; border-bottom-color: #3B82F6 !important; }
+    div.stButton > button {
+        border-radius: 8px; font-weight: 600;
+        transition: all 0.2s ease;
+    }
+    div.stButton > button:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(59,130,246,0.35); }
+    textarea, input[type="text"] {
+        background-color: #1C2128 !important;
+        color: #E5E7EB !important;
+        border: 1px solid #30363D !important;
+        border-radius: 8px !important;
+    }
+    textarea:focus, input[type="text"]:focus {
+        border-color: #3B82F6 !important;
+        box-shadow: 0 0 0 2px rgba(59,130,246,0.25) !important;
+    }
+    [data-testid="stFileUploader"] {
+        background: #1C2128;
+        border: 2px dashed #3B82F6;
+        border-radius: 10px;
+        transition: border-color 0.2s ease;
+    }
+    [data-testid="stFileUploader"]:hover { border-color: #8B5CF6; }
+
+    /* ── Divider ──────────────────────────────────────────────── */
+    hr { border-color: #30363D !important; }
+    .dark-divider { border: none; border-top: 1px solid #30363D; margin: 16px 0; }
+
+    /* ── History row ──────────────────────────────────────────── */
+    .hist-row {
+        background: #1C2128; border-radius: 10px;
+        padding: 12px 16px; margin-bottom: 8px;
+        border: 1px solid #30363D;
+    }
+    .hist-row:hover { border-color: #3B82F6; }
+
+    /* ── Section header ───────────────────────────────────────── */
+    .section-header {
+        font-size: 1.05rem; font-weight: 700; color: #E5E7EB;
+        border-bottom: 2px solid #3B82F6; padding-bottom: 6px;
+        margin-bottom: 14px; display: inline-block;
+    }
+
+    /* ── Fade-in animation ────────────────────────────────────── */
+    @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+    .fade-in { animation: fadeIn 0.4s ease forwards; }
     </style>
     """,
     unsafe_allow_html=True,
 )
 
-st.title("\U0001f916 AI Resume Screener")
-st.markdown("*Powered by Hugging Face sentence-transformers \u2014 semantic AI/ML matching*")
+# ── App header ─────────────────────────────────────────────────────
+st.markdown(
+    """
+    <div class="app-header fade-in">
+        <div class="logo">📄</div>
+        <div class="title-block">
+            <h1>Resume Screener AI</h1>
+            <p>Powered by Hugging Face sentence-transformers &mdash; semantic AI/ML matching</p>
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
 SKILLS_DB = [
     "python","javascript","typescript","java","c++","c#","go","rust",
@@ -320,45 +482,65 @@ def get_industry_trends(missing_skills, job_description):
             if len(results) == 5: return results
     return results
 
+_DARK_BG   = "#0E1117"
+_DARK_CARD = "#1C2128"
+_DARK_GRID = "#30363D"
+_DARK_TEXT = "#E5E7EB"
+
+def _dark_layout(**kwargs):
+    base = dict(
+        paper_bgcolor=_DARK_CARD,
+        plot_bgcolor=_DARK_CARD,
+        font=dict(color=_DARK_TEXT),
+        margin=dict(t=50,b=20,l=20,r=60),
+    )
+    base.update(kwargs)
+    return base
+
 def create_skill_chart(matched, missing, bonus):
     fig = go.Figure(go.Pie(
         labels=["Matched","Missing","Bonus"],
         values=[matched, missing, bonus],
         hole=0.45,
-        marker=dict(colors=["#28a745","#dc3545","#17a2b8"],line=dict(color="#fff",width=2)),
+        marker=dict(colors=["#10B981","#EF4444","#8B5CF6"],line=dict(color=_DARK_CARD,width=3)),
         textinfo="label+percent",
+        textfont=dict(color=_DARK_TEXT),
         hovertemplate="%{label}: %{value} skill(s)<extra></extra>",
     ))
-    fig.update_layout(title=dict(text="Skill Breakdown",font=dict(size=16)),
-                      showlegend=True,height=340,margin=dict(t=50,b=10,l=10,r=10))
+    fig.update_layout(title=dict(text="Skill Breakdown",font=dict(size=16,color=_DARK_TEXT)),
+                      showlegend=True, height=340,
+                      **_dark_layout(margin=dict(t=50,b=10,l=10,r=10)))
     return fig
 
 def create_score_chart(semantic, skill, combined):
     scores     = [semantic*100, skill*100, combined*100]
     categories = ["Semantic Similarity","Skill Match","Overall Score"]
-    colors     = ["#28a745" if s>=80 else "#ffc107" if s>=60 else "#dc3545" for s in scores]
+    colors     = ["#10B981" if s>=80 else "#FBBF24" if s>=60 else "#EF4444" for s in scores]
     fig = go.Figure(go.Bar(x=scores,y=categories,orientation="h",
-        marker_color=colors, text=[f"{s:.1f}%" for s in scores], textposition="outside",
+        marker_color=colors, text=[f"{s:.1f}%" for s in scores],
+        textposition="outside", textfont=dict(color=_DARK_TEXT),
         hovertemplate="%{y}: %{x:.1f}%<extra></extra>"))
-    fig.update_layout(title=dict(text="Score Breakdown",font=dict(size=16)),
-        xaxis=dict(range=[0,115],ticksuffix="%",showgrid=True,gridcolor="#eee"),
-        yaxis=dict(autorange="reversed"), height=240,
-        margin=dict(t=50,b=20,l=20,r=60), plot_bgcolor="white")
+    fig.update_layout(title=dict(text="Score Breakdown",font=dict(size=16,color=_DARK_TEXT)),
+        xaxis=dict(range=[0,115],ticksuffix="%",showgrid=True,gridcolor=_DARK_GRID,color=_DARK_TEXT),
+        yaxis=dict(autorange="reversed",color=_DARK_TEXT), height=240,
+        **_dark_layout())
     return fig
 
 def create_confidence_chart(skill_confidences):
     if not skill_confidences: return go.Figure()
     skills = list(skill_confidences.keys())
     confs  = [skill_confidences[s][0] for s in skills]
-    level_colors = {"high":"#28a745","medium":"#ffc107","low":"#dc3545"}
+    level_colors = {"high":"#10B981","medium":"#FBBF24","low":"#EF4444"}
     bar_colors   = [level_colors[skill_confidences[s][1]] for s in skills]
     fig = go.Figure(go.Bar(x=confs,y=skills,orientation="h",
-        marker_color=bar_colors, text=[f"{c}%" for c in confs], textposition="outside",
+        marker_color=bar_colors, text=[f"{c}%" for c in confs],
+        textposition="outside", textfont=dict(color=_DARK_TEXT),
         hovertemplate="%{y}: %{x}% confidence<extra></extra>"))
-    fig.update_layout(title=dict(text="Skill Match Confidence",font=dict(size=16)),
-        xaxis=dict(range=[0,120],ticksuffix="%",showgrid=True,gridcolor="#eee"),
-        yaxis=dict(autorange="reversed"), height=max(200, 30*len(skills)+60),
-        margin=dict(t=50,b=20,l=20,r=60), plot_bgcolor="white")
+    fig.update_layout(title=dict(text="Skill Match Confidence",font=dict(size=16,color=_DARK_TEXT)),
+        xaxis=dict(range=[0,120],ticksuffix="%",showgrid=True,gridcolor=_DARK_GRID,color=_DARK_TEXT),
+        yaxis=dict(autorange="reversed",color=_DARK_TEXT),
+        height=max(200, 30*len(skills)+60),
+        **_dark_layout())
     return fig
 
 def export_to_pdf(resume_name, job_title, combined_score, semantic_score,
@@ -503,22 +685,22 @@ def extract_company(jd):
     m = re.search(r'(?:company|organization|employer|at|join)\s*[:\-]?\s*([A-Z][a-zA-Z0-9\s&,\.]+)', jd, re.IGNORECASE)
     return m.group(1).strip()[:40] if m else "Unknown"
 
-# Sidebar
+# ── Sidebar ────────────────────────────────────────────────────────
 with st.sidebar:
-    st.header("\U0001f4c2 Inputs")
+    st.markdown('<div class="section-header">📂 Inputs</div>', unsafe_allow_html=True)
     resume_file = st.file_uploader("Upload Resume (PDF)", type="pdf")
-    bookmark_options  = ["\u2014 none \u2014"] + [b["title"] for b in st.session_state.bookmarks]
-    selected_bookmark = st.selectbox("\U0001f4cc Load bookmarked job", bookmark_options, key="bm_select")
+    bookmark_options  = ["— none —"] + [b["title"] for b in st.session_state.bookmarks]
+    selected_bookmark = st.selectbox("📌 Load bookmarked job", bookmark_options, key="bm_select")
     default_jd = ""
-    if selected_bookmark != "\u2014 none \u2014":
+    if selected_bookmark != "— none —":
         for bm in st.session_state.bookmarks:
             if bm["title"] == selected_bookmark:
                 default_jd = bm["description"]
                 break
     job_description = st.text_area("Paste Job Description", value=default_jd, height=250, key="jd_input")
-    with st.expander("\U0001f516 Save as Bookmark"):
+    with st.expander("🔖 Save as Bookmark"):
         bm_title = st.text_input("Bookmark title", placeholder="e.g. Senior Engineer @ Google")
-        if st.button("\U0001f4be Save Bookmark") and bm_title and job_description:
+        if st.button("💾 Save Bookmark") and bm_title and job_description:
             if bm_title in [b["title"] for b in st.session_state.bookmarks]:
                 st.warning("A bookmark with this title already exists.")
             else:
@@ -526,6 +708,10 @@ with st.sidebar:
                 st.success(f"Saved: {bm_title}")
                 st.rerun()
     st.markdown("---")
+    if st.button("🗑️ Clear All", key="clear_all_btn", help="Clear resume and job description"):
+        st.session_state.history = []
+        st.session_state.saved_analyses = {}
+        st.rerun()
     st.caption("Model: `all-MiniLM-L6-v2` (Hugging Face, free, no API key)")
 
 # Main analysis
@@ -591,13 +777,28 @@ if resume_file and job_description:
     if not any(r == history_record for r in st.session_state.history):
         save_to_history(history_record)
 
-    st.success("\u2705 Analysis complete!")
-    st.markdown(f"### Overall Match &nbsp; {render_badge(combined_score)} &nbsp; {stars(combined_score)}", unsafe_allow_html=True)
-    col1,col2,col3,col4 = st.columns(4)
-    col1.metric("\U0001f3af Overall Match",  f"{combined_score*100:.1f}%")
-    col2.metric("\U0001f9e0 Semantic Score", f"{semantic_score*100:.1f}%")
-    col3.metric("\U0001f527 Skill Match",    f"{skill_score*100:.1f}%")
-    col4.metric("\U0001f4cb ATS Readiness",  f"{ats_score*100:.1f}%")
+    st.success("✅ Analysis complete!")
+
+    # ── Metric cards row ──────────────────────────────────────────
+    def _mc(icon, label, value_pct, extra=""):
+        badge_cls = "mc-badge-green" if value_pct>=80 else "mc-badge-yellow" if value_pct>=60 else "mc-badge-red"
+        badge_lbl = "Excellent" if value_pct>=80 else "Good" if value_pct>=60 else "Poor"
+        return (
+            f'<div class="metric-card fade-in">'
+            f'<div class="mc-icon">{icon}</div>'
+            f'<div class="mc-label">{label}</div>'
+            f'<div class="mc-value">{value_pct:.1f}%</div>'
+            f'<span class="mc-badge {badge_cls}">{badge_lbl}</span>'
+            f'{extra}</div>'
+        )
+
+    mc1, mc2, mc3, mc4 = st.columns(4)
+    mc1.markdown(_mc("🎯","Overall Match",combined_score*100), unsafe_allow_html=True)
+    mc2.markdown(_mc("🧠","Semantic Score",semantic_score*100), unsafe_allow_html=True)
+    mc3.markdown(_mc("🔧","Skill Match",skill_score*100), unsafe_allow_html=True)
+    mc4.markdown(_mc("📋","ATS Readiness",ats_score*100), unsafe_allow_html=True)
+
+    st.markdown("<div style='margin:14px 0;'></div>", unsafe_allow_html=True)
 
     pdf_bytes = export_to_pdf(
         resume_name=resume_name, job_title=job_title,
@@ -610,7 +811,7 @@ if resume_file and job_description:
         analysis_date=history_record["date"],
     )
     st.download_button(
-        label="\U0001f4c4 Export PDF Report", data=pdf_bytes,
+        label="📄 Export PDF Report", data=pdf_bytes,
         file_name=f"resume_report_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
         mime="application/pdf",
     )
@@ -618,86 +819,93 @@ if resume_file and job_description:
 
     (tab_dash, tab_skills_tab, tab_recs, tab_conf,
      tab_industry, tab_charts, tab_semantic, tab_preview) = st.tabs([
-        "\U0001f4ca Dashboard",
-        "\U0001f3af Skills Analysis",
-        "\U0001f4a1 Recommendations",
-        "\U0001f3af Confidence Scores",
-        "\U0001f3ed Industry Insights",
-        "\U0001f4c8 Charts",
-        "\U0001f9e0 Semantic Analysis",
-        "\U0001f4dd Resume Preview",
+        "📊 Dashboard",
+        "🎯 Skills Analysis",
+        "🧠 Detailed Report",
+        "📈 Insights",
+        "🏭 Industry Insights",
+        "📉 Charts",
+        "🔬 Semantic Analysis",
+        "📝 Resume Preview",
     ])
 
     with tab_dash:
-        st.subheader("\U0001f4ca Match Dashboard")
+        st.markdown('<div class="section-header">📊 Match Dashboard</div>', unsafe_allow_html=True)
         for lbl,score in [("Overall Match Score",combined_score),("Semantic Similarity",semantic_score),
                            ("Skill Match",skill_score),("ATS Readiness",ats_score)]:
             pct = score*100
             css = "status-ok" if pct>=80 else "status-warn" if pct>=60 else "status-bad"
-            st.markdown(f"**{lbl}** \u2014 <span class='{css}'>{pct:.1f}%</span>", unsafe_allow_html=True)
+            st.markdown(f"**{lbl}** — <span class='{css}'>{pct:.1f}%</span>", unsafe_allow_html=True)
             st.progress(score)
         st.markdown("---")
-        st.subheader("\U0001f50d Advanced Matching")
+        st.markdown('<div class="section-header">🔍 Advanced Matching</div>', unsafe_allow_html=True)
         adv1,adv2 = st.columns(2)
         with adv1:
             exp_card = "green" if exp_status.startswith("Qualified") else "yellow" if exp_status in ("Unknown","Overqualified") else "red"
             ry_str = f"{resume_years:.0f} yrs" if resume_years else "Not found"
             rq_str = f"{required_years:.0f} yrs" if required_years else "Not specified"
-            st.markdown(f'<div class="adv-card {exp_card}"><strong>\U0001f4bc Experience</strong><br>Candidate: <em>{ry_str}</em> &nbsp;|&nbsp; Required: <em>{rq_str}</em><br>Status: <span class="{exp_css}">{exp_status}</span></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="adv-card {exp_card}"><strong>💼 Experience</strong><br>Candidate: <em>{ry_str}</em> &nbsp;|&nbsp; Required: <em>{rq_str}</em><br>Status: <span class="{exp_css}">{exp_status}</span></div>', unsafe_allow_html=True)
             edu_card = "green" if edu_status.startswith("Meets") else "yellow" if required_edu_rank==0 else "red"
-            st.markdown(f'<div class="adv-card {edu_card}"><strong>\U0001f393 Education</strong><br>Candidate: <em>{resume_edu_name}</em> &nbsp;|&nbsp; Required: <em>{required_edu_name if required_edu_rank else "Not specified"}</em><br>Status: <span class="{edu_css}">{edu_status}</span></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="adv-card {edu_card}"><strong>🎓 Education</strong><br>Candidate: <em>{resume_edu_name}</em> &nbsp;|&nbsp; Required: <em>{required_edu_name if required_edu_rank else "Not specified"}</em><br>Status: <span class="{edu_css}">{edu_status}</span></div>', unsafe_allow_html=True)
         with adv2:
-            sal_str = f"${salary_range[0]:.0f}K \u2013 ${salary_range[1]:.0f}K" if salary_range else "Not specified"
-            st.markdown(f'<div class="adv-card blue"><strong>\U0001f4b0 Salary Range</strong><br><em>{sal_str}</em></div>', unsafe_allow_html=True)
+            sal_str = f"${salary_range[0]:.0f}K – ${salary_range[1]:.0f}K" if salary_range else "Not specified"
+            st.markdown(f'<div class="adv-card blue"><strong>💰 Salary Range</strong><br><em>{sal_str}</em></div>', unsafe_allow_html=True)
             loc_card = "green" if location in ("Remote","Hybrid / Remote") else "blue"
-            st.markdown(f'<div class="adv-card {loc_card}"><strong>\U0001f4cd Location</strong><br><em>{location}</em></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="adv-card {loc_card}"><strong>📍 Location</strong><br><em>{location}</em></div>', unsafe_allow_html=True)
             visa_card = "yellow" if visa_needed else "green"
             visa_lbl  = "Visa sponsorship mentioned" if visa_needed else "No visa sponsorship mentioned"
-            st.markdown(f'<div class="adv-card {visa_card}"><strong>\U0001f6c2 Visa / Work Auth</strong><br><em>{visa_lbl}</em></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="adv-card {visa_card}"><strong>🛂 Visa / Work Auth</strong><br><em>{visa_lbl}</em></div>', unsafe_allow_html=True)
         if ats_result["warnings"]:
             st.markdown("---")
-            st.subheader("\u26a0\ufe0f ATS Compatibility Warnings")
+            st.markdown('<div class="section-header">⚠️ ATS Compatibility Warnings</div>', unsafe_allow_html=True)
             for w in ats_result["warnings"]:
                 st.warning(w)
 
     with tab_skills_tab:
         c1,c2 = st.columns(2)
         with c1:
-            st.subheader("\u2705 Matched Skills")
+            st.markdown('<div class="section-header">✅ Matched Skills</div>', unsafe_allow_html=True)
             if matched_skills:
-                for s in sorted(matched_skills): st.write(f"\u2705 {s}")
-            else: st.info("No skills from the database matched.")
+                badges = "".join(f'<span class="skill-badge-green">✅ {s.title()}</span>' for s in sorted(matched_skills))
+                st.markdown(f'<div style="line-height:2;">{badges}</div>', unsafe_allow_html=True)
+            else:
+                st.info("No skills from the database matched.")
         with c2:
-            st.subheader("\u274c Missing Skills")
+            st.markdown('<div class="section-header">❌ Missing Skills</div>', unsafe_allow_html=True)
             if missing_skills:
-                for s in sorted(missing_skills): st.write(f"\u274c {s}")
-            else: st.success("All required skills are present!")
+                badges = "".join(f'<span class="skill-badge-red">❌ {s.title()}</span>' for s in sorted(missing_skills))
+                st.markdown(f'<div style="line-height:2;">{badges}</div>', unsafe_allow_html=True)
+            else:
+                st.success("All required skills are present!")
         if bonus_skills:
             st.markdown("---")
-            with st.expander("\U0001f31f Bonus skills in your resume (not required by job)"):
-                for s in sorted(bonus_skills): st.write(f"\u2022 {s}")
+            with st.expander("⭐ Bonus skills in your resume (not required by job)"):
+                badges = "".join(f'<span class="skill-badge-yellow">• {s.title()}</span>' for s in sorted(bonus_skills))
+                st.markdown(f'<div style="line-height:2;">{badges}</div>', unsafe_allow_html=True)
 
     with tab_recs:
-        st.subheader("\U0001f4a1 Personalised Recommendations")
+        st.markdown('<div class="section-header">💡 Personalised Recommendations</div>', unsafe_allow_html=True)
         if not recommendations:
-            st.success("\U0001f389 Your resume looks great! No major recommendations at this time.")
+            st.success("🎉 Your resume looks great! No major recommendations at this time.")
         else:
             plabels = {"high":"High Priority","medium":"Medium Priority","low":"Low Priority"}
             for i,rec in enumerate(recommendations, 1):
+                prio_cls = f"prio-{rec['priority']}"
                 st.markdown(
-                    f'<div class="rec-card rec-{rec["priority"]}"><strong>{rec["icon"]} {i}. {rec["title"]}</strong>'
-                    f' &nbsp;<em style="font-size:0.78rem;color:#888;">({plabels[rec["priority"]]})</em>'
-                    f'<br><span style="font-size:0.9rem;color:#555;">{rec["detail"]}</span></div>',
+                    f'<div class="rec-card rec-{rec["priority"]}">'
+                    f'<strong>{rec["icon"]} {i}. {rec["title"]}</strong>'
+                    f' &nbsp;<span class="{prio_cls}">({plabels[rec["priority"]]})</span>'
+                    f'<br><span style="font-size:0.9rem;">{rec["detail"]}</span></div>',
                     unsafe_allow_html=True)
         st.markdown("---")
-        st.subheader("\U0001f4cb ATS Compatibility Checklist")
+        st.markdown('<div class="section-header">📋 ATS Compatibility Checklist</div>', unsafe_allow_html=True)
         for label,passed,detail in ats_result["checks"]:
-            icon   = "\u2705" if passed else "\u274c"
+            icon   = "✅" if passed else "❌"
             colour = "ats-pass" if passed else "ats-fail"
-            st.markdown(f'<div class="ats-check"><span class="{colour}">{icon} <strong>{label}</strong></span> \u2014 {detail}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="ats-check"><span class="{colour}">{icon} <strong>{label}</strong></span> — {detail}</div>', unsafe_allow_html=True)
 
     with tab_conf:
-        st.subheader("\U0001f3af Skill Match Confidence")
+        st.markdown('<div class="section-header">📈 Skill Match Confidence</div>', unsafe_allow_html=True)
         st.markdown("Confidence shows how prominently each skill appears in your resume. High = skill appears 3+ times or in a dedicated skills section.")
         if skill_confidences:
             chips_html = ""
@@ -706,8 +914,7 @@ if resume_file and job_description:
             st.markdown(chips_html, unsafe_allow_html=True)
             st.markdown("---")
             for sk,(cp,lv) in sorted(skill_confidences.items(), key=lambda x: -x[1][0]):
-                ll = {"\u00ffhigh":"\U0001f7e2 High","high":"\U0001f7e2 High","medium":"\U0001f7e1 Medium","low":"\U0001f534 Low"}
-                level_label = "\U0001f7e2 High" if lv=="high" else "\U0001f7e1 Medium" if lv=="medium" else "\U0001f534 Low"
+                level_label = "🟢 High" if lv=="high" else "🟡 Medium" if lv=="medium" else "🔴 Low"
                 ca,cb = st.columns([3,1])
                 ca.markdown(f"**{sk.title()}**")
                 cb.markdown(f'<span class="conf-{lv}">{level_label} ({cp}%)</span>', unsafe_allow_html=True)
@@ -718,26 +925,26 @@ if resume_file and job_description:
             st.info("No matched skills to show confidence scores for.")
 
     with tab_industry:
-        st.subheader("\U0001f3ed Industry Insights & Competitive Analysis")
+        st.markdown('<div class="section-header">🏭 Industry Insights & Competitive Analysis</div>', unsafe_allow_html=True)
         st.markdown("Trending industry skills currently missing from your resume.")
         if industry_trends:
             for item in industry_trends:
                 st.markdown(
-                    f'<div class="rec-card rec-medium"><strong>\U0001f4cc {item["skill"].title()}</strong>'
-                    f' &nbsp;<em style="font-size:0.78rem;color:#888;">({item["category"]})</em><br>'
-                    f'<span style="font-size:0.9rem;color:#555;">Top in-demand skill in your industry. '
-                    f'&nbsp;<a href="{item["resource"]}" target="_blank">\U0001f4da Learn more \u2192</a></span></div>',
+                    f'<div class="rec-card rec-medium"><strong>📌 {item["skill"].title()}</strong>'
+                    f' &nbsp;<span class="prio-medium">({item["category"]})</span><br>'
+                    f'<span>Top in-demand skill in your industry. '
+                    f'&nbsp;<a href="{item["resource"]}" target="_blank" style="color:#3B82F6;">📚 Learn more →</a></span></div>',
                     unsafe_allow_html=True)
         else:
-            st.success("\U0001f389 Your resume already covers all the top trending skills for this role!")
+            st.success("🎉 Your resume already covers all the top trending skills for this role!")
         st.markdown("---")
-        st.subheader("\U0001f4ca Skills by Industry Category")
+        st.markdown('<div class="section-header">📊 Skills by Industry Category</div>', unsafe_allow_html=True)
         for cat,skills in INDUSTRY_TRENDING_SKILLS.items():
             have = [s for s in skills if s in resume_skills]
             need = [s for s in skills if s in job_skills and s not in resume_skills]
-            with st.expander(f"**{cat}** \u2014 {len(have)} of {len(skills)} trending skills"):
-                if have: st.markdown("\u2705 **You have:** " + ", ".join(s.title() for s in have))
-                if need: st.markdown("\u274c **Consider adding:** " + ", ".join(s.title() for s in need))
+            with st.expander(f"**{cat}** — {len(have)} of {len(skills)} trending skills"):
+                if have: st.markdown("✅ **You have:** " + ", ".join(s.title() for s in have))
+                if need: st.markdown("❌ **Consider adding:** " + ", ".join(s.title() for s in need))
                 if not have and not need: st.markdown("*No overlapping skills in this category.*")
 
     with tab_charts:
@@ -747,17 +954,17 @@ if resume_file and job_description:
         st.caption(f"Matched: {len(matched_skills)} skill(s) &nbsp;|&nbsp; Missing: {len(missing_skills)} skill(s) &nbsp;|&nbsp; Bonus: {len(bonus_skills)} skill(s)")
 
     with tab_semantic:
-        st.subheader("\U0001f9e0 Deep-Learning Similarity Breakdown")
+        st.markdown('<div class="section-header">🔬 Deep-Learning Similarity Breakdown</div>', unsafe_allow_html=True)
         st.markdown("**Overall semantic similarity between resume and job description:**")
         st.progress(semantic_score)
-        st.caption(f"{semantic_score*100:.1f}% \u2014 " + (
-            "Strong match \U0001f7e2" if semantic_score >= STRONG_MATCH_THRESHOLD
-            else "Moderate match \U0001f7e1" if semantic_score >= MODERATE_MATCH_THRESHOLD
-            else "Weak match \U0001f534"))
+        st.caption(f"{semantic_score*100:.1f}% — " + (
+            "Strong match 🟢" if semantic_score >= STRONG_MATCH_THRESHOLD
+            else "Moderate match 🟡" if semantic_score >= MODERATE_MATCH_THRESHOLD
+            else "Weak match 🔴"))
         st.markdown("---")
         st.markdown("**Skill coverage (required skills found in resume):**")
         st.progress(skill_score)
-        st.caption(f"{skill_score*100:.1f}% \u2014 {len(matched_skills)}/{len(job_skills)} required skills matched")
+        st.caption(f"{skill_score*100:.1f}% — {len(matched_skills)}/{len(job_skills)} required skills matched")
         st.markdown("---")
         st.markdown("**Combined score (60% semantic + 40% skill match):**")
         st.progress(combined_score)
@@ -766,74 +973,83 @@ if resume_file and job_description:
         st.info("The semantic score is computed using the `all-MiniLM-L6-v2` transformer model from Hugging Face. It measures *meaning* similarity, not just keyword overlap.")
 
     with tab_preview:
-        st.subheader("\U0001f4dd Extracted Resume Text")
+        st.markdown('<div class="section-header">📝 Extracted Resume Text</div>', unsafe_allow_html=True)
         st.text_area("", value=resume_text, height=400, disabled=True)
 
     st.markdown("---")
-    st.subheader("\U0001f4be Save This Analysis")
+    st.markdown('<div class="section-header">💾 Save This Analysis</div>', unsafe_allow_html=True)
     sc1,sc2 = st.columns([3,1])
     with sc1:
-        save_label = st.text_input("Label for saved analysis", value=f"{resume_name} \u2013 {job_title[:30]}", key="save_label_input")
+        save_label = st.text_input("Label for saved analysis", value=f"{resume_name} – {job_title[:30]}", key="save_label_input")
     with sc2:
         st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("\U0001f4be Save", key="save_analysis_btn"):
+        if st.button("💾 Save", key="save_analysis_btn"):
             st.session_state.saved_analyses[save_label] = history_record
             st.success(f"Saved as: **{save_label}**")
 
 else:
-    st.info("\U0001f448 Upload a resume PDF and paste a job description in the sidebar to get started!")
-    st.markdown("""
-### How it works
-1. **Upload** your resume as a PDF
-2. **Paste** the job description
-3. The app uses a **Hugging Face transformer model** to measure semantic similarity
-4. It also **extracts and compares technical skills** automatically
-5. You get a detailed **match score with recommendations**
-6. **Advanced metrics** \u2014 experience years, education level, salary range, location
-7. **Beautiful charts** \u2014 skill breakdown donut chart, score comparison bar chart
-8. **ATS Score** \u2014 compatibility check with detailed pass/fail breakdown
-9. **Recommendations** \u2014 personalised, actionable improvement tips (top 3\u20135)
-10. **Confidence Scores** \u2014 how prominently each matched skill appears
-11. **Industry Insights** \u2014 top trending skills you\'re missing with learning links
-12. **History** \u2014 track all your analyses over time
-13. **Compare** \u2014 side-by-side comparison of saved analyses
-14. **Bookmarks** \u2014 save favourite job descriptions for quick access
-15. **PDF Export** \u2014 one-click professional report download
-""")
+    st.markdown(
+        """
+        <div class="fade-in" style="background:#1C2128;border-radius:14px;padding:32px;border:1px solid #30363D;margin-top:16px;">
+        <h3 style="color:#3B82F6;margin-top:0;">👈 Get Started</h3>
+        <p style="color:#9CA3AF;">Upload a resume PDF and paste a job description in the sidebar to get started!</p>
+        <hr style="border-color:#30363D;">
+        <h4 style="color:#E5E7EB;">How it works</h4>
+        <ol style="color:#9CA3AF;line-height:2;">
+        <li><strong style="color:#E5E7EB;">Upload</strong> your resume as a PDF</li>
+        <li><strong style="color:#E5E7EB;">Paste</strong> the job description</li>
+        <li>The app uses a <strong style="color:#3B82F6;">Hugging Face transformer model</strong> to measure semantic similarity</li>
+        <li>It also <strong style="color:#E5E7EB;">extracts and compares technical skills</strong> automatically</li>
+        <li>You get a detailed <strong style="color:#10B981;">match score with recommendations</strong></li>
+        <li><strong style="color:#E5E7EB;">Advanced metrics</strong> — experience years, education level, salary range, location</li>
+        <li><strong style="color:#E5E7EB;">Beautiful dark-theme charts</strong> — skill breakdown &amp; score comparison</li>
+        <li><strong style="color:#FBBF24;">ATS Score</strong> — compatibility check with detailed pass/fail breakdown</li>
+        <li><strong style="color:#E5E7EB;">Recommendations</strong> — personalised, actionable improvement tips (top 3–5)</li>
+        <li><strong style="color:#E5E7EB;">Confidence Scores</strong> — how prominently each matched skill appears</li>
+        <li><strong style="color:#E5E7EB;">Industry Insights</strong> — top trending skills you're missing with learning links</li>
+        <li><strong style="color:#E5E7EB;">History</strong> — track all your analyses over time</li>
+        <li><strong style="color:#E5E7EB;">Compare</strong> — side-by-side comparison of saved analyses</li>
+        <li><strong style="color:#E5E7EB;">Bookmarks</strong> — save favourite job descriptions for quick access</li>
+        <li><strong style="color:#EF4444;">PDF Export</strong> — one-click professional report download</li>
+        </ol>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 # Application History
 st.markdown("---")
-st.subheader("\U0001f4dc Application History")
+st.markdown('<div class="section-header">📜 Application History</div>', unsafe_allow_html=True)
 if not st.session_state.history:
     st.info("No history yet. Run an analysis to start tracking your applications.")
 else:
-    hist_search = st.text_input("\U0001f50d Search history", placeholder="Filter by job title, company, or resume name\u2026", key="hist_search")
+    hist_search = st.text_input("🔍 Search history", placeholder="Filter by job title, company, or resume name…", key="hist_search")
     filtered = [r for r in st.session_state.history if not hist_search or hist_search.lower() in json.dumps(r).lower()]
     if not filtered:
         st.info("No records match your search.")
     else:
         for idx,record in enumerate(filtered):
             pct   = record["overall_score"]
-            badge = "\U0001f7e2" if pct>=80 else "\U0001f7e1" if pct>=60 else "\U0001f534"
+            badge = "🟢" if pct>=80 else "🟡" if pct>=60 else "🔴"
             ca,cb,cc = st.columns([5,2,1])
             with ca:
-                st.markdown(f"**{record['resume_name']}** \u2192 {record['job_title']} <span style='color:#888;font-size:0.85rem;'>({record['company']})</span>", unsafe_allow_html=True)
-                st.caption(f"\U0001f4c5 {record['date']}")
+                st.markdown(f"**{record['resume_name']}** → {record['job_title']} <span style='color:#9CA3AF;font-size:0.85rem;'>({record['company']})</span>", unsafe_allow_html=True)
+                st.caption(f"📅 {record['date']}")
             with cb:
                 st.markdown(f"{badge} **{pct}%** match &nbsp;|&nbsp; ATS: {record['ats_score']}%")
             with cc:
-                if st.button("\U0001f5d1\ufe0f", key=f"del_hist_{idx}", help="Delete this record"):
+                if st.button("🗑️", key=f"del_hist_{idx}", help="Delete this record"):
                     st.session_state.history.pop(st.session_state.history.index(record))
                     st.rerun()
-            st.markdown("<hr style='margin:4px 0;border-color:#eee;'>", unsafe_allow_html=True)
-    if st.button("\U0001f5d1\ufe0f Clear All History", key="clear_history"):
+            st.markdown("<hr class='dark-divider'>", unsafe_allow_html=True)
+    if st.button("🗑️ Clear All History", key="clear_history"):
         st.session_state.history = []
         st.rerun()
 
 # Compare Saved Resumes
 if st.session_state.saved_analyses:
     st.markdown("---")
-    st.subheader("\U0001f4ca Compare Saved Analyses")
+    st.markdown('<div class="section-header">📊 Compare Saved Analyses</div>', unsafe_allow_html=True)
     saved_labels = list(st.session_state.saved_analyses.keys())
     cl,cr = st.columns(2)
     with cl: left_label  = st.selectbox("Select first analysis",  saved_labels, key="cmp_left")
@@ -844,36 +1060,36 @@ if st.session_state.saved_analyses:
         la = st.session_state.saved_analyses[left_label]
         ra = st.session_state.saved_analyses[right_label]
         metrics = [
-            ("\U0001f3af Overall Match", f"{la['overall_score']}%", f"{ra['overall_score']}%"),
-            ("\U0001f9e0 Semantic Score", f"{la['semantic_score']}%", f"{ra['semantic_score']}%"),
-            ("\U0001f527 Skill Match",    f"{la['skill_score']}%",   f"{ra['skill_score']}%"),
-            ("\U0001f4cb ATS Score",      f"{la['ats_score']}%",     f"{ra['ats_score']}%"),
-            ("\u2705 Matched Skills", str(len(la['matched_skills'])), str(len(ra['matched_skills']))),
-            ("\u274c Missing Skills", str(len(la['missing_skills'])), str(len(ra['missing_skills']))),
+            ("🎯 Overall Match", f"{la['overall_score']}%", f"{ra['overall_score']}%"),
+            ("🧠 Semantic Score", f"{la['semantic_score']}%", f"{ra['semantic_score']}%"),
+            ("🔧 Skill Match",    f"{la['skill_score']}%",   f"{ra['skill_score']}%"),
+            ("📋 ATS Score",      f"{la['ats_score']}%",     f"{ra['ats_score']}%"),
+            ("✅ Matched Skills", str(len(la['matched_skills'])), str(len(ra['matched_skills']))),
+            ("❌ Missing Skills", str(len(la['missing_skills'])), str(len(ra['missing_skills']))),
         ]
         h1,h2,h3 = st.columns(3)
         h1.markdown("**Metric**"); h2.markdown(f"**{left_label[:22]}**"); h3.markdown(f"**{right_label[:22]}**")
-        st.markdown("<hr style='margin:4px 0;'>", unsafe_allow_html=True)
+        st.markdown("<hr class='dark-divider'>", unsafe_allow_html=True)
         for lbl,lv,rv in metrics:
             c1,c2,c3 = st.columns(3)
             c1.markdown(lbl); c2.markdown(lv); c3.markdown(rv)
         rm1,rm2 = st.columns(2)
-        if rm1.button(f"\U0001f5d1\ufe0f Remove '{left_label[:20]}'",  key="rm_left"):
+        if rm1.button(f"🗑️ Remove '{left_label[:20]}'",  key="rm_left"):
             del st.session_state.saved_analyses[left_label];  st.rerun()
-        if rm2.button(f"\U0001f5d1\ufe0f Remove '{right_label[:20]}'", key="rm_right"):
+        if rm2.button(f"🗑️ Remove '{right_label[:20]}'", key="rm_right"):
             del st.session_state.saved_analyses[right_label]; st.rerun()
 
 # Bookmark Management
 if st.session_state.bookmarks:
     st.markdown("---")
-    st.subheader("\U0001f516 Job Bookmarks")
+    st.markdown('<div class="section-header">🔖 Job Bookmarks</div>', unsafe_allow_html=True)
     for idx,bm in enumerate(st.session_state.bookmarks):
         bc1,bc2 = st.columns([5,1])
         with bc1:
-            with st.expander(f"\U0001f4cc {bm['title']}"):
+            with st.expander(f"📌 {bm['title']}"):
                 st.text_area("Job Description", value=bm["description"], height=150, disabled=True, key=f"bm_preview_{idx}")
         with bc2:
             st.markdown("<br><br>", unsafe_allow_html=True)
-            if st.button("\U0001f5d1\ufe0f Remove", key=f"rm_bm_{idx}"):
+            if st.button("🗑️ Remove", key=f"rm_bm_{idx}"):
                 st.session_state.bookmarks.pop(idx)
                 st.rerun()
